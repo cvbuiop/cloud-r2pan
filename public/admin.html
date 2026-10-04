@@ -732,7 +732,7 @@ const I18N = {
     actionLogin: '登录', actionLogout: '登出',
     actionFail: '登录失败', actionRateLimited: '触发限流',
     resultSuccess: '成功', resultFail: '失败',
-    colAction: '操作', colResult: '结果', colReason: '原因', colLoginTime: '时间',
+    colAction: '操作', colResult: '结果', colLoginTime: '时间',
     secReasonInvalid: '密钥错误', secReasonRateLimited: '尝试过于频繁', secReasonSession: '会话失效',
     secClear30: '清理 30 天前', secClearAll: '清空全部',
     secConfirmClear30T: '清理登录日志', secConfirmClear30D: '删除 30 天前的所有登录日志。',
@@ -823,7 +823,6 @@ const I18N = {
     // OAuth2
     oauthGroupTitle: '🔐 OAuth2 下载登录',
     oauthGroupD: '管理员启用后，访客必须通过第三方账号登录才能下载。所有配置（client_id / secret）均在 D1 数据库中加密存储，不会进 Cloudflare Secret。',
-    oauthEnable: '启用 OAuth2',
     oauthProvider: 'OAuth2 服务商',
     oauthClientId: 'Client ID',
     oauthClientSecret: 'Client Secret',
@@ -920,7 +919,6 @@ const I18N = {
     confirmDeleteTitle: '确认删除',
     confirmOAuthDeleteD: '删除后此 Provider 的配置将永久删除。已生成的 OAuth2 会话不受影响，但新登录请求将无法使用此 Provider。确定删除吗？',
     custom: '自定义',
-    cancel: '取消',
     // 全球分布
     globalTitle: '🌍 全球下载分布',
     globalSub: '地球仪上蓝色越深代表下载量越大，鼠标悬停显示国家和具体数量。',
@@ -1092,7 +1090,7 @@ const I18N = {
     actionLogin: 'Login', actionLogout: 'Logout',
     actionFail: 'Login failed', actionRateLimited: 'Rate limited',
     resultSuccess: 'Success', resultFail: 'Failed',
-    colAction: 'Action', colResult: 'Result', colReason: 'Reason', colLoginTime: 'Time',
+    colAction: 'Action', colResult: 'Result', colLoginTime: 'Time',
     secReasonInvalid: 'Wrong key', secReasonRateLimited: 'Too many attempts', secReasonSession: 'Session expired',
     secClear30: 'Clear 30d+', secClearAll: 'Clear all',
     secConfirmClear30T: 'Clear login logs', secConfirmClear30D: 'Delete login logs older than 30 days.',
@@ -1183,7 +1181,6 @@ const I18N = {
     // OAuth2
     oauthGroupTitle: '🔐 OAuth2 Login Required for Downloads',
     oauthGroupD: 'When enabled, visitors must log in through a third-party OAuth2 provider before downloading. Client credentials are encrypted in the D1 database — no Cloudflare Secret needed.',
-    oauthEnable: 'Enable OAuth2',
     oauthProvider: 'OAuth2 Provider',
     oauthClientId: 'Client ID',
     oauthClientSecret: 'Client Secret',
@@ -2541,7 +2538,7 @@ const COUNTRY_NAMES = {
   'IS': '冰岛', 'LU': '卢森堡', 'MT': '马耳他', 'CY': '塞浦路斯', 'QA': '卡塔尔',
   'KW': '科威特', 'BH': '巴林', 'OM': '阿曼', 'JO': '约旦', 'LB': '黎巴嫩',
   'IR': '伊朗', 'IQ': '伊拉克', 'PK': '巴基斯坦', 'BD': '孟加拉国', 'LK': '斯里兰卡',
-  'NP': '尼泊尔', 'MM': '缅甸', 'KH': '柬埔寨', 'LA': '老挝', 'BD': '文莱',
+  'NP': '尼泊尔', 'MM': '缅甸', 'KH': '柬埔寨', 'LA': '老挝', 'BN': '文莱',
   'TT': '特立尼达和多巴哥', 'XX': '未知/未分类', 'ZZ': '未知/未分类',
   // English
   'US_EN': 'United States', 'CN_EN': 'China', 'JP_EN': 'Japan', 'KR_EN': 'South Korea',
@@ -2601,7 +2598,12 @@ async function loadGlobal(){
     'UA': [32, 49], 'CZ': [16, 49], 'HU': [19, 47], 'RO': [25, 46], 'BG': [25, 42], 'HR': [16, 45],
     'RS': [21, 44], 'SK': [19, 49], 'SI': [14, 46], 'LT': [24, 55], 'LV': [24, 56], 'EE': [26, 58],
     'IS': [-18, 64], 'LU': [6, 49], 'QA': [51, 25], 'KW': [47, 29], 'PK': [70, 30], 'BD': [90, 24],
-    'LK': [81, 7], 'MM': [95, 21], 'KH': [105, 12], 'ZZ': [0, 0], 'XX': [0, 0],
+    'LK': [81, 7], 'MM': [95, 21], 'KH': [105, 12], 'BN': [114, 4],
+    // 补齐原先缺失坐标的国家（缺坐标会被画到 [0,0]，即几内亚湾）
+    'MA': [-6, 32], 'MT': [14, 36], 'CY': [33, 35], 'BH': [50, 26], 'OM': [57, 21],
+    'JO': [36, 31], 'LB': [35, 34], 'IR': [53, 32], 'IQ': [44, 33], 'NP': [84, 28],
+    'LA': [103, 18], 'TT': [-61, 11],
+    'ZZ': [0, 0], 'XX': [0, 0],
   };
   const maxDownloads = Math.max(...countries.map(c => c.downloads), 1);
   const globeData = countries.map(c => {

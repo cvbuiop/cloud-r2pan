@@ -38,6 +38,10 @@ const FATAL_CODES = new Map([
   [2307, 'Cannot find module'],
   [2451, 'Cannot redeclare block-scoped variable'],
   [2404, 'Duplicate identifier'],
+  // 对象字面量里的重复键：后者会静默覆盖前者。
+  // 真实事故：i18n 里 oauthEnable 写了两遍（'启用 OAuth2' / '启用'），
+  // 前者变成永远不生效的死键，改了没反应，极难排查。
+  [1117, '对象字面量存在重复键（后者静默覆盖前者）'],
 ]);
 
 const files = readdirSync(PUBLIC_DIR)

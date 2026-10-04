@@ -375,14 +375,8 @@ export async function handleDownload(
   if (row.max_downloads && row.download_count >= row.max_downloads) return errorPage(req, 410, { zh: "下载次数已达上限", en: "Download Limit Reached" },
     { zh: `该资源允许下载 ${row.max_downloads} 次，名额已用完。`, en: `Download limit (${row.max_downloads}) reached.` });
 
-  if (row.max_downloads) {
-    const r = await env.db.prepare(
-      `UPDATE shares SET download_count = download_count + 1 WHERE id = ?1 AND download_count < ?2`
-    ).bind(token, row.max_downloads).run();
-    if ((r.meta.changes ?? 0) === 0)
-      return errorPage(req, 410, { zh: "下载次数已达上限", en: "Download Limit Reached" },
-        { zh: `名额已用完。`, en: `Quota used up.` });
-  }
+  // ⚠️ 配额扣减放在最后（所有门禁通过后、真正吐数据前）—— 见文件末尾注释。
+  //     这里的 download_count 只用于展示；原子扣减在下面统一做。
 
   if (row.password_hash && !(await verifyShareToken(env, token, new URL(req.url).search))) {
     return errorPage(req, 403, { zh: "需要访问密码", en: "Password Required" },
@@ -459,6 +453,26 @@ export async function handleDownload(
     }
   }
 
+  // ══════════════════════════════════════════════════════════════
+  // 原子扣减配额 —— 必须放在所有门禁之后
+  //
+  // 之前这段UPDATE 在密码 / OAuth / Turnstile 校验之前就执行，结果是：
+  // 任何人只要反复请求 /s/:token/download（不需要密码、不需要过验证码）
+  // 就能把某个分享的 max_downloads 配额全部烧光，让正常访客撞上
+  // 410「下载次数已达上限」—— 一个可被外部触发的配额DOS。
+  //
+  // 原子性由 WHERE download_count < ? 保证，所以挪到门禁之后
+  // 并不会削弱并发保护：并发请求仍然只会成功扣掉一个名额。
+  // ══════════════════════════════════════════════════════════════
+  if (row.max_downloads) {
+    const r = await env.db.prepare(
+      `UPDATE shares SET download_count = download_count + 1 WHERE id = ?1 AND download_count < ?2`
+    ).bind(token, row.max_downloads).run();
+    if ((r.meta.changes ?? 0) === 0)
+      return errorPage(req, 410, { zh: "下载次数已达上限", en: "Download Limit Reached" },
+        { zh: `名额已用完。`, en: `Quota used up.` });
+  }
+
   return streamFile(req, env, ctx, row, token, "share");
 }
 
@@ -518,14 +532,7 @@ export async function handleDirectDownload(
   if (row.max_downloads && row.download_count >= row.max_downloads) return errorPage(req, 410, { zh: "下载次数已达上限", en: "Download Limit Reached" },
     { zh: `名额已用完。`, en: `Quota used up.` });
 
-  if (row.max_downloads) {
-    const r = await env.db.prepare(
-      `UPDATE direct_links SET download_count = download_count + 1 WHERE id = ?1 AND download_count < ?2`
-    ).bind(token, row.max_downloads).run();
-    if ((r.meta.changes ?? 0) === 0)
-      return errorPage(req, 410, { zh: "下载次数已达上限", en: "Download Limit Reached" },
-        { zh: `名额已用完。`, en: `Quota used up.` });
-  }
+  // ⚠️ 配额扣减同样移到所有门禁之后（见文件末尾注释）
 
   {
     const whitelisted = isAdminWhitelisted(ip, settings.adminIps);
@@ -558,6 +565,17 @@ export async function handleDirectDownload(
           { siteTitle: settings.siteTitle });
       }
     }
+  }
+
+  // 原子扣减配额 —— 必须在流量限额、重复下载拦截等门禁之后，
+  // 否则被拦截的请求也会白白吃掉一个下载名额。
+  if (row.max_downloads) {
+    const r = await env.db.prepare(
+      `UPDATE direct_links SET download_count = download_count + 1 WHERE id = ?1 AND download_count < ?2`
+    ).bind(token, row.max_downloads).run();
+    if ((r.meta.changes ?? 0) === 0)
+      return errorPage(req, 410, { zh: "下载次数已达上限", en: "Download Limit Reached" },
+        { zh: `名额已用完。`, en: `Quota used up.` });
   }
 
   return streamFile(req, env, ctx, row, token, "direct");

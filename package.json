@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "wrangler dev",
     "check:html": "node scripts/check-inline-js.mjs",
-    "predeploy": "npm run check:html",
+    "test": "npm run check:html && node scripts/test-invariants.mjs",
+    "predeploy": "npm run test",
     "deploy": "wrangler deploy",
     "tail": "wrangler tail"
   },
