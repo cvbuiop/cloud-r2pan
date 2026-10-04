@@ -834,6 +834,10 @@ async function triggerDownload(d, ts, tsEnabled, tsOnDownload){
     }
     let url = `${baseUrl}?cf=${tk}`;
     if(code) url += `&code=${encodeURIComponent(code)}`;
+    // Turnstile token 一次性：用掉立即清掉。
+    // 否则按浏览器「返回」重试时（bfcache 会保留 JS 状态）会复用同一个 token，
+    // siteverify 报 timeout-or-duplicate → 403 人机验证未通过。
+    window.__tsToken = null;
     location.href = url;
   } else {
     let url = baseUrl;
@@ -888,10 +892,12 @@ async function wireUnlock(d, ts, tsEnabled, tsOnDownload){
           const sep = res.url.includes('?') ? '&' : '?';
           let dlUrl = res.url + sep + 'cf=' + tk;
           if(code){ const s2 = dlUrl.includes('?') ? '&' : '?'; dlUrl += s2 + 'code=' + encodeURIComponent(code); }
+          window.__tsToken = null; // 一次性 token，用完即弃
           location.href = dlUrl;
         } else {
           let dlUrl = res.url;
           if(code){ const s2 = dlUrl.includes('?') ? '&' : '?'; dlUrl += s2 + 'code=' + encodeURIComponent(code); }
+          window.__tsToken = null; // 一次性 token，用完即弃
           location.href = dlUrl;
         }
         return;

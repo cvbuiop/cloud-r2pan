@@ -142,22 +142,41 @@ async function verifyPassword(stored: string, password: string): Promise<boolean
   const got = await sha256Hex(salt + ":" + password);
   return safeEqual(want, got);
 }
-/** 颁发短时下载授权令牌：格式 `${到期时间戳}.${HMAC}` */
-async function issueToken(env: Env, token: string): Promise<string> {
+/**
+ * 颁发短时下载授权令牌：格式 `${到期时间戳}.${HMAC}`
+ *
+ * `turnstileVerified=true` 时 HMAC 的签名材料多一个 ":ts" 后缀，
+ * 生成一种不同类型的令牌 —— 表示“这次授权是在 Turnstile 校验通过之后颁发的”。
+ * /download 拿到这种令牌就不再重复向 Cloudflare 校验：
+ * Turnstile token 是一次性的，同一个 token 校验第二次必然返回
+ * timeout-or-duplicate，于是明明前端过了验证码，后端仍然报 403 人机验证未通过。
+ */
+async function issueToken(env: Env, token: string, turnstileVerified = false): Promise<string> {
   const exp = Date.now() + TOKEN_TTL_MS;
-  const sig = await hmacHex(env.admin, `${token}:${exp}`);
+  const sig = await hmacHex(env.admin, `${token}:${exp}${turnstileVerified ? ":ts" : ""}`);
   return `${exp}.${sig}`;
 }
-/** 校验下载授权令牌（存在于 URL query string 中） */
+/** 校验下载授权令牌（存在于 URL query string 中）—— 两种签名都算有效密码凭证 */
 async function verifyShareToken(env: Env, token: string, query: string): Promise<boolean> {
+  return await verifyTicket(env, token, query, "any");
+}
+/** 该令牌是否是在 Turnstile 校验通过之后颁发的 —— 只认 ":ts" 签名 */
+async function hasTurnstileTicket(env: Env, token: string, query: string): Promise<boolean> {
+  return await verifyTicket(env, token, query, "ts");
+}
+async function verifyTicket(env: Env, token: string, query: string, mode: "any" | "ts"): Promise<boolean> {
   const t = new URLSearchParams(query).get("t");
   if (!t) return false;
   const i = t.indexOf(".");
   if (i < 0) return false;
   const exp = Number(t.slice(0, i));
   if (!Number.isFinite(exp) || exp < Date.now()) return false;
-  const want = await hmacHex(env.admin, `${token}:${exp}`);
-  return safeEqual(t.slice(i + 1), want);
+  const sig = t.slice(i + 1);
+  // mode="any"：验证码通过后颁发的令牌同样是有效凭证，必须也能过密码校验
+  if (mode === "any") {
+    if (safeEqual(sig, await hmacHex(env.admin, `${token}:${exp}`))) return true;
+  }
+  return safeEqual(sig, await hmacHex(env.admin, `${token}:${exp}:ts`));
 }
 
 /** GET /s/:token —— 分享页元信息（供前端渲染） */
@@ -274,11 +293,15 @@ export async function handleVerify(req: Request, env: Env, token: string): Promi
   const turnstileOn = await isTurnstileEnabled(env, settings) && (settings.turnstileMode === "both");
 
   // Turnstile 校验（both 模式下必须有有效 token）
+  // 注意：Turnstile token 一次性，用掉就没了。校验结果通过授权令牌的 ":ts" 标记传给 /download，
+  // 避免下载接口拿同一个 token 再验一次（第二次必定 timeout-or-duplicate → 403）。
+  let turnstilePassed = false;
   if (turnstileOn) {
     const pass = await verifyTurnstileToken(env, settings, String(body.turnstile ?? ""), ip);
     if (!pass) {
       return json({ error: "turnstile_failed" }, { status: 403 });
     }
+    turnstilePassed = true;
   }
 
   // 密码校验
@@ -288,7 +311,7 @@ export async function handleVerify(req: Request, env: Env, token: string): Promi
   }
   if (!(await verifyPassword(row.password_hash, String(body.password ?? ""))))
     return json({ error: "bad_password" }, { status: 401 });
-  const ticket = await issueToken(env, token);
+  const ticket = await issueToken(env, token, turnstilePassed);
   return json({ ok: true, url: `/s/${token}/download?t=${ticket}` });
 }
 
@@ -382,17 +405,22 @@ export async function handleDownload(
     const mode = settings.turnstileMode;
     const downloadGate = mode === "on_download" || mode === "both";
     if (downloadGate) {
-      const turnstileToken = url.searchParams.get("cf");
-      if (!turnstileToken) {
-        return errorPage(req, 403, { zh: "需要验证码", en: "Turnstile Required" },
-          { zh: "请先通过人机验证。", en: "Please complete human verification." },
-          { siteTitle: settings.siteTitle });
-      }
-      const pass = await verifyTurnstileToken(env, settings, turnstileToken, ip);
-      if (!pass) {
-        return errorPage(req, 403, { zh: "验证码校验失败", en: "Turnstile Failed" },
-          { zh: "人机验证未通过。", en: "Human verification failed." },
-          { siteTitle: settings.siteTitle });
+      // 如果这个授权令牌是在 Turnstile 通过后颁发的（/verify 里校验过），
+      // 就不要再拿 ?cf= 里的 token 去 siteverify —— 那个 token 已经被用掉了。
+      const alreadyVerified = await hasTurnstileTicket(env, token, url.search);
+      if (!alreadyVerified) {
+        const turnstileToken = url.searchParams.get("cf");
+        if (!turnstileToken) {
+          return errorPage(req, 403, { zh: "需要验证码", en: "Turnstile Required" },
+            { zh: "请先通过人机验证。", en: "Please complete human verification." },
+            { siteTitle: settings.siteTitle });
+        }
+        const pass = await verifyTurnstileToken(env, settings, turnstileToken, ip);
+        if (!pass) {
+          return errorPage(req, 403, { zh: "验证码校验失败", en: "Turnstile Failed" },
+            { zh: "人机验证未通过。", en: "Human verification failed." },
+            { siteTitle: settings.siteTitle });
+        }
       }
     }
   }
