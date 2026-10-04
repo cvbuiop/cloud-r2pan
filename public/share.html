@@ -652,8 +652,9 @@ function render(d, siteName, oauthErr, oauthProviders){
   if(d.needs_password && $('#pw')) wireUnlock(d, ts, tsEnabled, tsOnDownload, oauthEnabled, oauthAuthed, oauthProviders);
 
   // ═══════ 激活码浮动按钮 & 弹窗 ═══════
-  function getBoundCode(){ try { return localStorage.getItem('r2pan_code')?.trim().toUpperCase() || null; } catch { return null; } }
-  function setBoundCode(c){ try { if(c) localStorage.setItem('r2pan_code', c.trim().toUpperCase()); else localStorage.removeItem('r2pan_code'); } catch {} }
+  // getBoundCode / setBoundCode 定义在顶层（render 之外），
+  // 因为顶层函数 triggerDownload() / wireUnlock() 也要调用它们。
+  // 放在 render 内部会导致 ReferenceError，下载点击后静默无反应。
 
   // 更新浮动按钮上的绑定状态 badge
   function updateCodeFloatBadge(){
@@ -808,6 +809,10 @@ function render(d, siteName, oauthErr, oauthProviders){
     }).catch(() => { box.innerHTML = `<div class="warn" style="text-align:center;font-size:12.5px">${esc(t('turnstileFail'))}</div>`; });
   }
 }
+
+// 激活码读写（顶层作用域 —— render() 内的弹窗与顶层下载函数共用）
+function getBoundCode(){ try { return localStorage.getItem('r2pan_code')?.trim().toUpperCase() || null; } catch { return null; } }
+function setBoundCode(c){ try { if(c) localStorage.setItem('r2pan_code', c.trim().toUpperCase()); else localStorage.removeItem('r2pan_code'); } catch {} }
 
 async function triggerDownload(d, ts, tsEnabled, tsOnDownload){
   const baseUrl = `/s/${token}/download`;
