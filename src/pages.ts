@@ -143,8 +143,11 @@ export function errorPage(
 html, body { height: 100%; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
-  min-height: 100vh; display: flex; align-items: center; justify-content: center;
-  padding: 24px; color: #fff; overflow: hidden; position: relative;
+  min-height: 100vh; display: flex; align-items: center;
+  /* 内容高于屏幕时要能向上滚动，safe center 避免居中时把顶部裁掉 */
+  justify-content: center; justify-content: safe center;
+  padding: max(24px, env(safe-area-inset-top)) 18px calc(60px + env(safe-area-inset-bottom));
+  color: #fff; overflow-x: hidden; overflow-y: auto; position: relative;
   background: linear-gradient(160deg, #0b1026 0%, #1a1240 45%, #2a1045 100%);
 }
 .orb { position: fixed; border-radius: 50%; filter: blur(90px); opacity: .5; pointer-events: none; animation: drift 18s ease-in-out infinite alternate; }
@@ -172,7 +175,18 @@ body {
 h1 { font-size: 24px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 12px; }
 p { font-size: 15px; line-height: 1.65; color: rgba(255,255,255,.78); }
 .code { margin-top: 22px; font-size: 13px; color: rgba(255,255,255,.45); font-family: ui-monospace, "SF Mono", monospace; }
-.brand { position: fixed; bottom: 22px; left: 0; right: 0; text-align: center; font-size: 13px; color: rgba(255,255,255,.4); letter-spacing: .08em; }
+.brand { position: fixed; bottom: max(22px, env(safe-area-inset-bottom)); left: 0; right: 0; text-align: center; font-size: 13px; color: rgba(255,255,255,.4); letter-spacing: .08em; }
+
+/* ═══════ 手机适配 ═══════ */
+@media (max-width: 480px) {
+  body { padding: 14px 13px calc(58px + env(safe-area-inset-bottom)); }
+  .card { padding: 32px 20px 26px; border-radius: 24px; }
+  .icon { width: 64px; height: 64px; border-radius: 20px; font-size: 32px; margin-bottom: 16px; }
+  h1 { font-size: 20px; margin-bottom: 8px; }
+  p { font-size: 14px; line-height: 1.6; }
+  .code { margin-top: 16px; font-size: 12px; }
+  .brand { font-size: 12px; }
+}
 </style>
 </head>
 <body>

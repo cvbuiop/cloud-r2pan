@@ -354,18 +354,8 @@ body {
   font-weight: 600;
 }
 
-/* ── 移动端折叠 ───────────────────────── */
-@media (max-width: 760px) {
-  .layout { flex-direction: column; }
-  .sidebar {
-    position: static; width: 100%; max-height: none;
-    flex-direction: row; flex-wrap: wrap; gap: 6px;
-    padding: 10px;
-  }
-  .sb-main { padding: 7px 12px; font-size: 13px; }
-  .sb-main .chev { display: none; }
-  .sb-sub { display: none; }
-}
+/* ── 移动端适配 ───────────────────────── */
+/* 全部集中在样式表末尾（见「══ 移动端适配 ══」区块），避免分散的断点互相覆盖 */
 
 /* ── 统计卡片 ─────────────────────────── */
 .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 18px; }
@@ -617,9 +607,172 @@ body {
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .actions-cell { display: flex; gap: 6px; }
-@media (max-width: 720px) {
-  .tbl th:nth-child(n+5), .tbl td:nth-child(n+5) { display: none; }
+/* 存储浏览表格里「图标 + 文件名」的单元格（不用内联 display:flex，方便卡片式布局接管） */
+.tbl td.cell-icon > .ficon { margin-right: 8px; vertical-align: middle; }
+
+/* 表格横向滚动容器（宽屏保持表格形态） */
+.tbl-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* ═══════════════════════════════════════════════════════════
+   移动端适配
+   —— 集中放在样式表末尾，确保覆盖前面所有基础规则
+   860px 以下：平板/大屏手机，侧边栏变吸顶横向标签条
+   700px 以下：手机，表格转卡片流
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 860px) {
+  /* ── 顶栏：吸顶通栏，流量条换行到第二排 ── */
+  .topbar {
+    /* 窄屏不吸顶：流量条换行后顶栏有两行、约 100px 高，吸顶会吃掉太多屏幕，
+       而吸顶偏移又没法写死（高度随宽度变）。改为只让下面的标签条吸顶。 */
+    position: static;
+    margin: 0 -12px 12px;
+    padding: calc(env(safe-area-inset-top) + 10px) 12px 10px;
+    border-radius: 0 0 20px 20px;
+    border-left: none; border-right: none; border-top: none;
+    flex-wrap: wrap; gap: 8px; row-gap: 8px;
+  }
   .topbar .sub { display: none; }
+  .topbar h1 { font-size: 15px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .topbar > div { min-width: 0; }
+  /* 顶栏已经折行，spacer 再抢宽度会平白吃掉一行高度 */
+  .topbar .spacer { display: none; }
+  /* 标题容器用 flex:1 1 0 占剩余空间（而不是按max-content 占位）。
+     否则 320px 下它会把「退出」挤到第二行，顶栏从 2 行变 3 行、高度 150px。
+     min-width:0 + h1 的 ellipsis 保证长站点名会省略而不是撑宽。 */
+  .topbar > div:nth-child(2) { flex: 1 1 0; min-width: 0; }
+  .topbar .logo { width: 32px; height: 32px; border-radius: 10px; }
+  .topbar .logo svg { width: 19px; height: 19px; }
+  .traffic-pill { order: 10; flex: 1 0 100%; justify-content: center; padding: 7px 12px; }
+  .traffic-pill .bar { flex: 1; max-width: 160px; }
+
+  /* ── 侧边栏 → 吸顶横向滚动标签条 ──
+     .sb-sub 用 display:contents 把子菜单按钮「摊平」成同级 flex item，
+     这样手机上不用点开分组也能直达每一个子页面。 */
+  .layout { flex-direction: column; gap: 12px; align-items: stretch; }
+  /* 纵向 flex 下若保留 align-items:flex-start，#view 会按 max-content 宽度撑开
+     （auto-fit 栅格会算出一排），直接把页面撑出横向滚动条 */
+  .layout #view { width: 100%; }
+  .sidebar {
+    position: sticky; top: calc(env(safe-area-inset-top) + 8px); z-index: 40;
+    width: 100%; max-height: none;
+    flex-direction: row; align-items: center; gap: 6px;
+    padding: 8px; border-radius: 16px;
+    overflow-x: auto; overflow-y: hidden;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+  }
+  .sidebar::-webkit-scrollbar { display: none; }
+  .sb-sub { display: contents; }
+  .sb-main, .sb-sub button {
+    flex: none; width: auto; white-space: nowrap;
+    min-height: 40px; padding: 9px 13px; border-radius: 12px; font-size: 13.5px;
+  }
+  .sb-main .ic, .sb-sub button .ic { font-size: 15px; width: auto; }
+  .sb-main .chev { display: none; }
+  /* 分组标题在窄屏不是可停留页面，取消高亮，只让真正的子页高亮 */
+  .sb-main.open:not(.single) { background: transparent; color: var(--text-3); }
+  .sb-sub button.active { box-shadow: inset 0 -2px 0 var(--blue), var(--shadow-inset-hi); }
+
+  /* ── 间距与字号收紧 ── */
+  .wrap {
+    padding: 12px 12px 56px;
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+  .section { padding: 16px 14px; margin-bottom: 14px; border-radius: 18px; }
+  .section-title { margin-bottom: 12px; }
+  .stat-grid { grid-template-columns: repeat(auto-fit, minmax(136px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .stat-card { padding: 14px 15px; border-radius: 18px; }
+  .stat-card .value { font-size: 21px; margin-top: 5px; }
+  .stat-card .value small { font-size: 12px; }
+  .stat-card .label { font-size: 12px; }
+  .stat-card .foot { font-size: 11px; }
+  .chart { height: 118px; gap: 4px; }
+  .chart .bar { border-radius: 6px 6px 3px 3px; }
+  .chart .day { font-size: 9px; }
+  .dropzone { padding: 24px 14px; margin-bottom: 14px; }
+  .dropzone .t { font-size: 14px; }
+  .banner { padding: 12px 14px; gap: 10px; }
+  .pager { flex-wrap: wrap; }
+  .empty { padding: 32px 12px; }
+  .empty .icon { font-size: 28px; }
+  .ficon { width: 32px; height: 32px; border-radius: 9px; font-size: 10px; }
+
+  /* ── 输入类控件 ── */
+  /* iOS 对字号 <16px 的输入控件会在聚焦时自动放大整个页面（而放大后又缩不回去），
+     而本页相当一部分 select / textarea 的字号是写在 HTML 内联样式里的，
+     内联优先级高于样式表，所以这条必须用 !important 才能盖住。
+     复选框/单选框不受影响，排除掉。 */
+  input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]),
+  select, textarea { font-size: 16px !important; }
+  .field input, .field select { padding: 12px; }
+  .group .row select { flex: 0 1 150px; width: auto; min-width: 110px; }
+  .group .row textarea { width: 100%; line-height: 1.6; }
+  .link-box { flex-wrap: wrap; }
+  .link-box input { flex: 1 1 100%; width: 100%; }
+  .switch { width: 46px; height: 28px; }
+  .switch .track { border-radius: 15px; }
+  .switch .thumb { width: 24px; height: 24px; }
+  .switch input:checked + .track .thumb { transform: translateX(18px); }
+
+  /* ── 触控目标放大到 ≥40px ── */
+  .btn { min-height: 44px; padding: 11px 16px; }
+  .btn.sm { min-height: 40px; padding: 9px 13px; }
+  .group { border-radius: 18px; }
+  .group .row { flex-wrap: wrap; padding: 12px 14px; gap: 10px; }
+  .group .row .info { flex: 1 1 130px; }
+  .group .row input[type=number] { flex: 0 1 110px; width: auto; min-width: 76px; }
+  .group .row input[type=text] { flex: 0 1 170px; width: auto; min-width: 110px; }
+
+  /* ── 底部弹层 ── */
+  .modal { padding: 20px 16px calc(20px + env(safe-area-inset-bottom)); max-height: 92vh; }
+  .modal .actions .btn { padding: 14px 10px; font-size: 15px; }
+  #toasts { top: calc(env(safe-area-inset-top) + 10px); }
+  .toast { max-width: calc(100vw - 24px); }
+
+  /* ── 登录页 ── */
+  .login-card { padding: 32px 24px 28px; border-radius: 28px; }
+  .login-card .logo { width: 60px; height: 60px; border-radius: 20px; margin-bottom: 16px; }
+  .login-card .logo svg { width: 33px; height: 33px; }
+  .login-card h1 { font-size: 20px; }
+}
+
+@media (max-width: 700px) {
+  /* ── 表格 → 卡片流 ──
+     表头整行隐藏，每个单元格用 data-label（由 labelTableCells 从 <th> 注入）
+     当行内标签，操作列自动铺到卡片底部。宽度 100% 不再需要左右滑动。
+     选择器用 #view table 而不是 .tbl：激活码那张表用的是 .admin-table，
+     只写 .tbl 会漏掉它，那一页照样会横向溢出。 */
+  .tbl-scroll { overflow-x: visible; }
+  #view table, #view table tbody, #view table tr, #view table td { display: block; width: 100%; }
+  #view table thead { display: none; }
+  #view table tr {
+    margin-bottom: 10px; padding: 4px 0;
+    border: 1px solid var(--stroke); border-radius: 16px;
+    background: var(--sf-soft);
+  }
+  #view table tr:last-child { margin-bottom: 0; }
+  #view table tbody tr:hover { background: transparent; }
+  #view table td {
+    display: grid; grid-template-columns: minmax(74px, 34%) 1fr;
+    gap: 10px; align-items: baseline;
+    text-align: right; padding: 9px 14px;
+    white-space: normal; word-break: break-word;
+    border-bottom: 1px solid var(--tbl-row-border);
+  }
+  #view table td::before {
+    content: attr(data-label);
+    font-size: 12.5px; font-weight: 600; color: var(--text-3); text-align: left;
+  }
+  #view table td:not([data-label])::before { content: none; }
+  #view table td[colspan] { display: block; text-align: center; }
+  #view table td:first-child { font-size: 14px; font-weight: 650; }
+  #view table td:last-child { border-bottom: none; padding-top: 8px; padding-bottom: 12px; }
+  #view table td:last-child .actions-cell { justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+  #view table td .btn.sm { min-height: 42px; padding: 10px 16px; font-size: 13.5px; }
+  #view table td .progress { width: 100%; }
+  .name-cell { max-width: none; }
+  .mono { font-size: 12.5px; word-break: break-all; }
+  .tag { font-size: 12px; padding: 4px 11px; }
 }
 </style>
 </head>
@@ -846,6 +999,7 @@ const I18N = {
     oauthNoProviders: '还没有配置任何 OAuth2 Provider',
     oauthEnabledN: '已启用 {n} 个 Provider',
     oauthNoEnabled: '总开关已打开，但没有启用任何 Provider',
+    oauthEnabled: '已启用',
     oauthDisabled: '未启用',
     oauthConfigure: '⚙️ 配置',
     oauthEnable: '启用',
@@ -967,6 +1121,7 @@ const I18N = {
     codesColCreated: '创建时间',
     codesColActivated: '首次使用',
     codesColExpires: '过期时间',
+    codesColActions: '操作',
     codesRevokeOne: '作废',
     codesRevokeBatch: '按批次作废',
     codesRevokeCodes: '按码作废',
@@ -1203,6 +1358,7 @@ const I18N = {
     oauthNoProviders: 'No OAuth2 providers configured yet',
     oauthEnabledN: '{n} provider(s) enabled',
     oauthNoEnabled: 'Master switch is ON but no provider is enabled',
+    oauthEnabled: 'Enabled',
     oauthDisabled: 'Disabled',
     oauthConfigure: '⚙️ Configure',
     oauthEnable: 'Enable',
@@ -1324,6 +1480,7 @@ const I18N = {
     codesColCreated: 'Created',
     codesColActivated: 'First Used',
     codesColExpires: 'Expires',
+    codesColActions: 'Actions',
     codesRevokeOne: 'Revoke',
     codesRevokeBatch: 'Revoke by Batch',
     codesRevokeCodes: 'Revoke by Codes',
@@ -1618,6 +1775,9 @@ NAV_GROUPS.forEach(g => {
 let currentTab = 'overview';
 let openGroup = 'overview'; // 当前展开的侧边栏分组
 let logsPage = 1, logsQuery = '';
+/* 窄屏断点，与 CSS 里的 @media (max-width: 860px) 保持一致：
+   侧边栏子菜单在该宽度下已被 display:contents 摊平 */
+const NARROW = window.matchMedia('(max-width: 860px)');
 
 async function showApp(){
   loginStage = 'password'; savedLoginKey = '';
@@ -1692,6 +1852,10 @@ async function showApp(){
         main.classList.toggle('open');
         sub?.classList.toggle('open');
         openGroup = main.classList.contains('open') ? gKey : null;
+        // 窄屏下子菜单已经摊平成一排标签，展开动作没有视觉意义，
+        // 所以点分组标题等于直接进入该组第一个子页（否则这个标题点了没反应）
+        const g = NAV_GROUPS.find(x => x.key === gKey);
+        if (NARROW.matches && g && g.subs) switchTab(g.subs[0].tab);
       }
       return;
     }
@@ -1740,12 +1904,48 @@ function switchTab(tab){
     sidebar.querySelectorAll('.sb-sub button[data-tab]').forEach(b =>
       b.classList.toggle('active', b.dataset.tab === tab)
     );
+    // 窄屏侧边栏是横向滚动条，把当前页滚到视野中间（只动 sidebar 自己的 scrollLeft，不会带动页面）
+    if (NARROW.matches) {
+      const act = sidebar.querySelector('.sb-sub button.active') || sidebar.querySelector('.sb-main.open');
+      if (act) sidebar.scrollLeft = act.offsetLeft - (sidebar.clientWidth - act.offsetWidth) / 2;
+    }
   }
   const v = $('#view');
   v.innerHTML = '<div class="spin"></div>';
+  observeView(v);
   (TAB_LOADERS[tab] || (() => Promise.resolve()))().catch(e => {
     v.innerHTML = `<div class="glass section"><div class="empty"><div class="icon">⚠️</div>${esc(e.message === 'unauthorized' ? t('loadingErr') : e.message)}</div></div>`;
   });
+}
+
+/* ═══════════ 移动端表格卡片化 ═══════════
+   窄屏下 <thead> 被隐藏、每行变成一张卡片，所以每个 <td> 需要知道自己对应的列名。
+   从 <th> 读取文案注入 data-label，CSS 伪元素用它当行内标签。
+   统一从 DOM 反推，新增表格/改列顺序都不需要同步维护标签。 */
+function labelTableCells(root){
+  if (!root || !root.querySelectorAll) return;
+  root.querySelectorAll('table').forEach(table => {
+    const heads = table.querySelectorAll('thead th');
+    if (!heads.length) return;
+    table.querySelectorAll('tbody tr').forEach(tr => {
+      tr.querySelectorAll(':scope > td').forEach((td, i) => {
+        const label = heads[i] ? heads[i].textContent.trim() : '';
+        if (label) {
+          if (td.dataset.label !== label) td.dataset.label = label;
+        } else if (td.dataset.label) {
+          delete td.dataset.label;
+        }
+      });
+    });
+  });
+}
+function observeView(v){
+  if (!v || v.dataset.obs) return;
+  v.dataset.obs = '1';
+  // 表格都是异步 loadXxx 之后才 innerHTML 注入的，用观察器统一兜住。
+  // 必须同步跑：rAF 在后台标签页会被节流到 1s 甚至不触发，标签就迟迟不出现。
+  // 写入的是 data-label 属性，而观察器只监听 childList，不会自激循环。
+  new MutationObserver(() => labelTableCells(v)).observe(v, { childList: true, subtree: true });
 }
 
 /* ═══════════ 概览 ═══════════ */
@@ -1808,7 +2008,7 @@ async function loadOverview(){
       <div class="section-title"><h2>🕘 ${esc(t('recentTitle'))}</h2>
         <button class="btn sm" id="goto-logs">${esc(t('viewAll'))}</button></div>
       ${s.recent.length ? `
-      <div style="overflow-x:auto"><table class="tbl">
+      <div class="tbl-scroll"><table class="tbl">
         <thead><tr><th>${esc(t('colFile'))}</th><th>${esc(t('colIP'))}</th><th>${esc(t('colBrowser'))}</th><th>${esc(t('colOS'))}</th><th>${esc(t('colTraffic'))}</th><th>${esc(t('colTime'))}</th></tr></thead>
         <tbody>${s.recent.map(r => `
           <tr>
@@ -1839,7 +2039,7 @@ async function loadFiles(){
     <div class="glass section">
       <div class="section-title"><h2>📁 ${esc(t('allFiles'))}（${files.length}）</h2></div>
       ${files.length ? `
-      <div style="overflow-x:auto"><table class="tbl">
+      <div class="tbl-scroll"><table class="tbl">
         <thead><tr><th style="width:44px"></th><th>${esc(t('colName'))}</th><th>${esc(t('colSize'))}</th><th>${esc(t('colShareCount'))}</th><th>${esc(t('colDownloads'))}</th><th>${esc(t('colUploaded'))}</th><th style="width:170px">${esc(t('colActions'))}</th></tr></thead>
         <tbody>${files.map(f => `
           <tr>
@@ -2120,7 +2320,7 @@ async function loadStorage(){
           const icon = ficon(e.name);
           return `<tr data-key="${rowKey}">
             <td><input type="checkbox" class="stg-chk"></td>
-            <td style="display:flex;align-items:center;gap:10px">${icon}<span style="font-family:ui-monospace,monospace">${esc(e.name)}</span></td>
+            <td class="cell-icon">${icon}<span style="font-family:ui-monospace,monospace">${esc(e.name)}</span></td>
             <td class="num">${fmtSize(e.size)}</td>
             <td class="num" style="white-space:nowrap">${e.lastModified ? fmtTime(e.lastModified) : '—'}</td>
             <td style="white-space:nowrap">
@@ -2202,7 +2402,7 @@ async function loadShares(){
       <div class="section-title"><h2>🔗 ${esc(t('sharesTitle'))}（${shares.length}）</h2>
         <button class="btn sm" id="cleanup-shares">${esc(t('cleanup'))}</button></div>
       ${shares.length ? `
-      <div style="overflow-x:auto"><table class="tbl">
+      <div class="tbl-scroll"><table class="tbl">
         <thead><tr><th>${esc(t('colFile'))}</th><th>${esc(t('colLink'))}</th><th>${esc(t('passwordCol'))}</th><th>${esc(t('colDownloads'))} / ${esc(t('colExpires'))}</th><th>${esc(t('colCreated'))}</th><th>${esc(t('colExpires'))}</th><th>${esc(t('colStatus'))}</th><th style="width:80px">${esc(t('colActions'))}</th></tr></thead>
         <tbody>${shares.map(s => {
           const pw = s.has_password ? (s.password_plain || '') : null;
@@ -2274,7 +2474,7 @@ async function loadLogs(){
         </div>
       </div>
       ${d.logs.length ? `
-      <div style="overflow-x:auto"><table class="tbl">
+      <div class="tbl-scroll"><table class="tbl">
         <thead><tr><th>${esc(t('colFile'))}</th><th>${esc(t('colIP'))}</th><th>${esc(t('colCountry'))}</th><th>${esc(t('colBrowser'))}</th><th>${esc(t('colOS'))}</th><th>${esc(t('colTraffic'))}</th><th>${esc(t('colTime'))}</th></tr></thead>
         <tbody>${d.logs.map(l => `
           <tr>
@@ -2319,7 +2519,7 @@ async function loadDirectLinks(){
       <div class="section-title"><h2>🔗 ${esc(t('directLinksTitle'))}（${direct_links.length}）</h2>
         <button class="btn sm" id="cleanup-directs">${esc(t('cleanupDirects'))}</button></div>
       ${direct_links.length ? `
-      <div style="overflow-x:auto"><table class="tbl">
+      <div class="tbl-scroll"><table class="tbl">
         <thead><tr>
           <th>${esc(t('colFile'))}</th><th>${esc(t('colLink'))}</th>
           <th>备注</th>
@@ -2375,7 +2575,7 @@ async function loadBans(){
     <div class="glass section">
       <div class="section-title"><h2>🚫 ${esc(t('banList'))}（${bans.length}）</h2></div>
       ${bans.length ? `
-      <div style="overflow-x:auto"><table class="tbl">
+      <div class="tbl-scroll"><table class="tbl">
         <thead><tr><th>${esc(t('colIP'))}</th><th>${esc(t('colReason'))}</th><th>${esc(t('colBannedAt'))}</th><th>${esc(t('colUntil'))}</th><th style="width:80px">${esc(t('colActions'))}</th></tr></thead>
         <tbody>${bans.map(b => `
           <tr>
@@ -2445,7 +2645,7 @@ async function loadSecurity(){
     </div>
     <div class="glass section">
       ${d.logs.length ? `
-      <div style="overflow-x:auto"><table class="tbl">
+      <div class="tbl-scroll"><table class="tbl">
         <thead><tr><th>${esc(t('colAction'))}</th><th>${esc(t('colIP'))}</th><th>${esc(t('colCountry'))}</th><th>${esc(t('colBrowser'))}</th><th>${esc(t('colOS'))}</th><th>${esc(t('colResult'))}</th><th>${esc(t('colReason'))}</th><th>${esc(t('colLoginTime'))}</th></tr></thead>
         <tbody>${d.logs.map(l => {
           const actText = actionMap[l.action] || l.action;
@@ -2919,7 +3119,7 @@ async function loadCodesList(){
     const statusLabel = { unused: t('codesStatusUnused'), active: t('codesStatusActive'), expired: t('codesStatusExpired'), exhausted: t('codesStatusExhausted'), revoked: t('codesStatusRevoked') };
     const statusColor = { unused: '#9aa4b2', active: '#60a5fa', expired: '#fbbf24', exhausted: '#f87171', revoked: '#a3a3a3' };
     $('#codes-table').innerHTML = `
-      <div style="overflow-x:auto">
+      <div class="tbl-scroll">
       <table class="admin-table" style="width:100%;border-collapse:separate;border-spacing:0;font-size:13px">
         <thead>
           <tr style="text-align:left;color:var(--text-2);border-bottom:1px solid var(--stroke)">

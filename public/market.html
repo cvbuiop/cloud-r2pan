@@ -49,7 +49,7 @@ h1{font-size:28px;font-weight:700;letter-spacing:-.02em;background:linear-gradie
 .stats{display:flex;gap:16px;margin-bottom:20px;font-size:13px;color:rgba(255,255,255,.55);animation:rise .5s .05s cubic-bezier(.22,1.2,.36,1) both;flex-wrap:wrap}
 .stats .active{color:rgba(255,255,255,.85)}
 
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(280px,100%),1fr));gap:18px}
 .card{
   border-radius:22px;padding:20px;cursor:pointer;position:relative;
   background:linear-gradient(145deg,rgba(255,255,255,.16),rgba(255,255,255,.05));
@@ -104,6 +104,34 @@ footer a{color:rgba(56,189,248,.8);text-decoration:none}
 
 .lang-btn{margin-left:10px;padding:4px 13px;border-radius:11px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.1);color:#fff;font-size:12px;cursor:pointer;backdrop-filter:blur(10px);transition:all .15s}
 .lang-btn:hover{background:rgba(255,255,255,.2);color:#fff}
+
+/* ═══════ 手机适配 ═══════ */
+@media (max-width:560px){
+  body{padding:16px 14px 64px}
+  h1{font-size:22px}
+  .subtitle{font-size:13px}
+  .brand{gap:10px;margin-bottom:18px}
+  .brand-icon{width:38px;height:38px;border-radius:12px;font-size:19px}
+  .toolbar{gap:10px;margin-bottom:16px}
+  .search{min-width:100%}
+  /* 搜索/排序控件字号必须 ≥16px，否则 iOS 聚焦时会自动放大页面 */
+  .search input{padding:12px 44px 12px 16px;font-size:16px}
+  .sort select{flex:1;min-width:0;font-size:16px;padding:12px 40px 12px 16px}
+  .stats{gap:10px;font-size:12px;margin-bottom:16px}
+  .grid{grid-template-columns:1fr;gap:12px}
+  .card{padding:16px;border-radius:18px}
+  .card-head{gap:11px;margin-bottom:12px}
+  .icon{width:44px;height:44px;border-radius:12px;font-size:19px}
+  .title{font-size:15px}
+  .title .alt{font-size:12px}
+  .desc{font-size:12.5px;margin-bottom:12px;min-height:0}
+  .pagination{gap:6px;margin-top:22px}
+  .pagination button{min-width:36px;height:36px;padding:0 11px}
+  .pagination .info{flex:1 0 100%;text-align:center;margin:4px 0 0;font-size:12px}
+  .empty{padding:52px 12px}
+  .empty .emoji{font-size:44px;margin-bottom:12px}
+  .empty h3{font-size:18px}
+}
 </style>
 </head>
 <body>

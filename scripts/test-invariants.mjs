@@ -174,6 +174,77 @@ check(
 );
 
 // ══════════════════════════════════════════════════════════
+// ⑤ i18n key 完整性：t('x') 用到的 key 必须在 zh / en 两边都存在
+//    （事故：表头写t('codesColActions')，但两边都没这个 key，
+//      页面上直接把原始 key 字符串渲染出来了，不报任何错）
+// ══════════════════════════════════════════════════════════
+console.log('\n⑤ i18n key 完整性');
+
+/** 从 "const I18N = {" 里切出 zh: {...} / en: {...} 两个字典块。
+ *  必须按行首锚定：用 indexOf('en:') 会误命中 token: / when: 这类 key 里的子串。 */
+function dictBlock(src, name) {
+  const m = new RegExp(`\\n\\s{2}${name}:\\s*\\{`).exec(src);
+  if (!m) return null;
+  const start = m.index + m[0].length - 1;
+  let depth = 0;
+  // 字典值里的占位符（'{n}' / '{site}'）自身也是配平的，所以花括号计数仍然正确
+  for (let j = start; j < src.length; j++) {
+    if (src[j] === '{') depth++;
+    else if (src[j] === '}') {
+      depth--;
+      if (depth === 0) return src.slice(start, j + 1);
+    }
+  }
+  return null;
+}
+
+/** 收集一个字典块里的 key。
+ *  注意：不能只匹配“独占一行的 key:”—— 字典里大量条目是挤在同一行的
+ *  （login: '…', logout: '…', cancel: '…'），那样会漏掉一大半。
+ *  先抹掉字符串字面量和 // 注释，值里的内容就不会被误当成 key。 */
+function keysOf(block) {
+  const stripped = block
+    .replace(/\/\/[^\n]*/g, '')
+    .replace(/'(?:[^'\\]|\\.)*'/g, "''")
+    .replace(/`(?:[^`\\]|\\.)*`/g, '``');
+  return new Set([...stripped.matchAll(/(?:^|[\n,{])\s*([A-Za-z_$][A-Za-z0-9_$]*):/g)].map((m) => m[1]));
+}
+
+const zhDict = dictBlock(adminHtml, 'zh');
+const enDict = dictBlock(adminHtml, 'en');
+
+check('能切出 I18N.zh 字典', !!zhDict, 'zh: { 之后没找到配平的花括号');
+check('能切出 I18N.en 字典', !!enDict, 'en: { 之后没找到配平的花括号');
+
+if (zhDict && enDict) {
+  const zhKeys = keysOf(zhDict);
+  const enKeys = keysOf(enDict);
+
+  // 合理性自检：切出来的字典必须有足够多的 key，否则「一个都没缺」是假通过
+  check(
+    '字典切取结果合理（zh/en 各 ≥150 个 key）',
+    zhKeys.size >= 150 && enKeys.size >= 150,
+    `zh=${zhKeys.size}, en=${enKeys.size}`
+  );
+
+  // 页面里所有 t('x') 的 key
+  const used = new Set(
+    [...adminHtml.matchAll(/(?<![A-Za-z0-9_$.])t\(\s*['"]([A-Za-z_][A-Za-z0-9_]*)['"]/g)].map((m) => m[1])
+  );
+  check('页面确实用到了 t()（避免规则本身失效）', used.size >= 100, `只找到 ${used.size} 个`);
+
+  const missingZh = [...used].filter((k) => !zhKeys.has(k)).sort();
+  const missingEn = [...used].filter((k) => !enKeys.has(k)).sort();
+  check('所有 t() 的 key 在 zh 里都存在', missingZh.length === 0, `缺失 ${missingZh.length} 个: ${missingZh.join(', ')}`);
+  check('所有 t() 的 key 在 en 里都存在', missingEn.length === 0, `缺失 ${missingEn.length} 个: ${missingEn.join(', ')}`);
+
+  const onlyZh = [...zhKeys].filter((k) => !enKeys.has(k)).sort();
+  const onlyEn = [...enKeys].filter((k) => !zhKeys.has(k)).sort();
+  check('zh / en 字典 key 对称', onlyZh.length === 0 && onlyEn.length === 0,
+    `仅 zh 有: ${onlyZh.join(', ') || '无'}；仅 en 有: ${onlyEn.join(', ') || '无'}`);
+}
+
+// ══════════════════════════════════════════════════════════
 console.log('');
 if (failed) {
   console.error(`✗ ${failed} 项未通过（共 ${passed + failed} 项）`);
